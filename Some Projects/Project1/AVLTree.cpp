@@ -82,11 +82,11 @@ std::unique_ptr<AVLTree::Node> AVLTree::insertNode(std::unique_ptr<Node> node, c
 
 void AVLTree::insert(const Student& s) {
     if (idExists(root.get(), s.id)) {
-        std::cout << "❌ ID already exists!\n";
+        std::cout << "ID already exists!\n";
         return;
     }
     root = insertNode(std::move(root), s);
-    std::cout << "✅ Student inserted successfully.\n";
+    std::cout << "Student inserted successfully.\n";
 }
 
 void AVLTree::inorder(const Node* node) const {
@@ -152,7 +152,7 @@ std::unique_ptr<AVLTree::Node> AVLTree::deleteById(std::unique_ptr<Node> node, i
 
 void AVLTree::deleteStudentById(int id) {
     root = deleteById(std::move(root), id);
-    std::cout << "🗑️  Deleted student (if existed)\n";
+    std::cout << "Deleted student (if existed)\n";
 }
 
 const Student* AVLTree::findById(const Node* node, int id) const {
@@ -179,11 +179,11 @@ void AVLTree::saveToFile(const Node* node, std::ofstream& file) const {
 void AVLTree::save(const std::string& filename) const {
     std::ofstream file(filename);
     if (!file) {
-        std::cerr << "❌ Failed to open file for saving.\n";
+        std::cerr << "Failed to open file for saving.\n";
         return;
     }
     saveToFile(root.get(), file);
-    std::cout << "💾 Data saved to file.\n";
+    std::cout << "Data saved to file.\n";
 }
 
 void AVLTree::load(const std::string& filename) {
@@ -201,5 +201,5 @@ void AVLTree::load(const std::string& filename) {
         Student s(std::stoi(idStr), name, std::stod(gpaStr));
         insert(s);
     }
-    std::cout << "📂 Data loaded.\n";
+    std::cout << "Data loaded.\n";
 }

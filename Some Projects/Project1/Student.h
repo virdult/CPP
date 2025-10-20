@@ -11,12 +11,9 @@ public:
     std::string name;
     double gpa;
 
-    Student(int id, const std::string& name, double gpa)
-        : id(id), name(name), gpa(gpa) {}
+    Student(int id, const std::string& name, double gpa); // only declare
 
-    void display() const {
-        std::cout << "ID: " << id << " | Name: " << name << " | GPA: " << gpa << '\n';
-    }
+    void display() const;
 };
 
 #endif

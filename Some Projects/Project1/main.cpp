@@ -52,7 +52,7 @@ int main() {
             std::cin >> id;
             const Student* s = tree.findStudentById(id);
             if (s) s->display();
-            else std::cout << "❌ Not found.\n";
+            else std::cout << "Not found.\n";
         }
 
         else if (choice == 4) tree.displayAll();
