@@ -60,7 +60,8 @@ std::unique_ptr<AVLTree::Node> AVLTree::insertNode(std::unique_ptr<Node> node, c
             [](const Student& st, int id) { return st.id < id; });
         node->students.insert(it, s);
         return node;
-    }
+    }//lower_bound is a binary search algorithm that finds the first position in a sorted container
+     //std::lower_bound(begin, end, value, comparator)
 
     updateHeight(node.get());
     int balance = getBalance(node);
@@ -170,9 +171,9 @@ const Student* AVLTree::findStudentById(int id) const {
 
 void AVLTree::saveToFile(const Node* node, std::ofstream& file) const {
     if (!node) return;
+    saveToFile(node->left.get(), file);
     for (const auto& s : node->students)
         file << s.id << ',' << s.name << ',' << s.gpa << '\n';
-    saveToFile(node->left.get(), file);
     saveToFile(node->right.get(), file);
 }
 
@@ -188,8 +189,10 @@ void AVLTree::save(const std::string& filename) const {
 
 void AVLTree::load(const std::string& filename) {
     std::ifstream file(filename);
-    if (!file) return;
-
+    if (!file){
+        std::cout << "No file to record input or get records from!\n";
+        return;
+    }
     root.reset(); // clear tree
     std::string line;
     while (std::getline(file, line)) {
@@ -203,3 +206,30 @@ void AVLTree::load(const std::string& filename) {
     }
     std::cout << "Data loaded.\n";
 }
+/*So here's a thing: you can do #include <queue> and get a queue library, and use it in BFS.
+  Why BFS? Because if we use BFS, we can record the inputs to the file in a level order so when reopening the code
+  with the file, when the file is getting uploaded to tree, there won't be any needs for balancing.
+  Also, don't worry about closing and opening because ofstream overrides the whole file with the new things.
+  How to do this:
+  //Don't forget to #include <queue>
+  void AVLTree::saveLevelOrder(const std::string& filename) const {
+    std::ofstream file(filename);
+    if (!file || !root) return; // exit if file can't open or tree is empty
+
+    std::queue<const Node*> q;    // queue for BFS
+    q.push(root.get());           // start with root node
+
+    while (!q.empty()) {
+        const Node* node = q.front(); // get the next node to process
+        q.pop();
+
+        // write all students in this node
+        for (const auto& s : node->students)
+            file << s.id << ',' << s.name << ',' << s.gpa << '\n';
+
+        // enqueue children if they exist
+        if (node->left) q.push(node->left.get());
+        if (node->right) q.push(node->right.get());
+    }
+}
+*/
