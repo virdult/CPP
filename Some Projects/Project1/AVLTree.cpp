@@ -1,194 +1,205 @@
 #include "AVLTree.h"
+#include <sstream>
 #include <algorithm>
-#include <limits>
 
-// ========== AVLNode Constructor ==========
-AVLNode::AVLNode(std::shared_ptr<Student> s)
-    : gpa(s->gpa), height(1), left(nullptr), right(nullptr) {
-    students.push_back(s);
-}
-
-// ========== AVLTree Implementation ==========
-AVLTree::AVLTree() : root(nullptr) {}
-
-int AVLTree::getHeight(const std::shared_ptr<AVLNode>& n) const {
+int AVLTree::getHeight(const std::unique_ptr<Node>& n) const {
     return n ? n->height : 0;
 }
 
-int AVLTree::getBalance(const std::shared_ptr<AVLNode>& n) const {
+int AVLTree::getBalance(const std::unique_ptr<Node>& n) const {
     return n ? getHeight(n->left) - getHeight(n->right) : 0;
 }
 
-std::shared_ptr<AVLNode> AVLTree::rightRotate(std::shared_ptr<AVLNode> y) {
-    auto x = y->left;
-    auto T2 = x->right;
-    x->right = y;
-    y->left = T2;
-    y->height = std::max(getHeight(y->left), getHeight(y->right)) + 1;
-    x->height = std::max(getHeight(x->left), getHeight(x->right)) + 1;
+void AVLTree::updateHeight(Node* n) {
+    n->height = 1 + std::max(getHeight(n->left), getHeight(n->right));
+}
+
+std::unique_ptr<AVLTree::Node> AVLTree::rotateRight(std::unique_ptr<Node> y) {
+    std::unique_ptr<Node> x = std::move(y->left);
+    std::unique_ptr<Node> T2 = std::move(x->right);
+
+    x->right = std::move(y);
+    x->right->left = std::move(T2);
+
+    updateHeight(x->right.get());
+    updateHeight(x.get());
+
     return x;
 }
 
-std::shared_ptr<AVLNode> AVLTree::leftRotate(std::shared_ptr<AVLNode> x) {
-    auto y = x->right;
-    auto T2 = y->left;
-    y->left = x;
-    x->right = T2;
-    x->height = std::max(getHeight(x->left), getHeight(x->right)) + 1;
-    y->height = std::max(getHeight(y->left), getHeight(y->right)) + 1;
+std::unique_ptr<AVLTree::Node> AVLTree::rotateLeft(std::unique_ptr<Node> x) {
+    std::unique_ptr<Node> y = std::move(x->right);
+    std::unique_ptr<Node> T2 = std::move(y->left);
+
+    y->left = std::move(x);
+    y->left->right = std::move(T2);
+
+    updateHeight(y->left.get());
+    updateHeight(y.get());
+
     return y;
 }
 
-bool AVLTree::lessThan(const std::shared_ptr<Student>& a, const std::shared_ptr<Student>& b) {
-    if (a->gpa == b->gpa)
-        return a->id < b->id;
-    return a->gpa < b->gpa;
+bool AVLTree::idExists(const Node* node, int id) const {
+    if (!node) return false;
+    for (auto& s : node->students)
+        if (s.id == id) return true;
+    return idExists(node->left.get(), id) || idExists(node->right.get(), id);
 }
 
-std::shared_ptr<AVLNode> AVLTree::insertNode(std::shared_ptr<AVLNode> node, std::shared_ptr<Student> s) {
-    if (!node)
-        return std::make_shared<AVLNode>(s);
+std::unique_ptr<AVLTree::Node> AVLTree::insertNode(std::unique_ptr<Node> node, const Student& s) {
+    if (!node) return std::make_unique<Node>(s.gpa, s);
 
-    if (s->gpa < node->gpa)
-        node->left = insertNode(node->left, s);
-    else if (s->gpa > node->gpa)
-        node->right = insertNode(node->right, s);
+    if (s.gpa < node->gpa)
+        node->left = insertNode(std::move(node->left), s);
+    else if (s.gpa > node->gpa)
+        node->right = insertNode(std::move(node->right), s);
     else {
-        auto& v = node->students;
-        auto it = v.begin();
-        while (it != v.end() && (*it)->id < s->id) ++it;
-        v.insert(it, s);
+        // same GPA — sort by ID
+        auto it = std::lower_bound(node->students.begin(), node->students.end(), s.id,
+            [](const Student& st, int id) { return st.id < id; });
+        node->students.insert(it, s);
         return node;
     }
 
-    node->height = 1 + std::max(getHeight(node->left), getHeight(node->right));
-
+    updateHeight(node.get());
     int balance = getBalance(node);
-    if (balance > 1 && s->gpa < node->left->gpa)
-        return rightRotate(node);
-    if (balance < -1 && s->gpa > node->right->gpa)
-        return leftRotate(node);
-    if (balance > 1 && s->gpa > node->left->gpa) {
-        node->left = leftRotate(node->left);
-        return rightRotate(node);
+
+    // Rotations
+    if (balance > 1 && s.gpa < node->left->gpa) return rotateRight(std::move(node));
+    if (balance < -1 && s.gpa > node->right->gpa) return rotateLeft(std::move(node));
+    if (balance > 1 && s.gpa > node->left->gpa) {
+        node->left = rotateLeft(std::move(node->left));
+        return rotateRight(std::move(node));
     }
-    if (balance < -1 && s->gpa < node->right->gpa) {
-        node->right = rightRotate(node->right);
-        return leftRotate(node);
+    if (balance < -1 && s.gpa < node->right->gpa) {
+        node->right = rotateRight(std::move(node->right));
+        return rotateLeft(std::move(node));
     }
+
     return node;
 }
 
-std::shared_ptr<AVLNode> AVLTree::findMin(std::shared_ptr<AVLNode> node) {
-    auto current = node;
-    while (current && current->left)
-        current = current->left;
-    return current;
+void AVLTree::insert(const Student& s) {
+    if (idExists(root.get(), s.id)) {
+        std::cout << "❌ ID already exists!\n";
+        return;
+    }
+    root = insertNode(std::move(root), s);
+    std::cout << "✅ Student inserted successfully.\n";
 }
 
-std::shared_ptr<AVLNode> AVLTree::deleteStudentRec(std::shared_ptr<AVLNode> root, int id) {
-    if (!root) return nullptr;
+void AVLTree::inorder(const Node* node) const {
+    if (!node) return;
+    inorder(node->left.get());
+    for (const auto& s : node->students) s.display();
+    inorder(node->right.get());
+}
 
-    auto& vec = root->students;
-    for (auto it = vec.begin(); it != vec.end(); ++it) {
-        if ((*it)->id == id) {
-            vec.erase(it);
+void AVLTree::displayAll() const {
+    if (!root) std::cout << "(empty)\n";
+    else inorder(root.get());
+}
+
+AVLTree::Node* AVLTree::minValueNode(Node* node) {
+    while (node->left) node = node->left.get();
+    return node;
+}
+
+std::unique_ptr<AVLTree::Node> AVLTree::deleteById(std::unique_ptr<Node> node, int id) {
+    if (!node) return nullptr;
+
+    bool found = false;
+    for (auto it = node->students.begin(); it != node->students.end(); ++it) {
+        if (it->id == id) {
+            node->students.erase(it);
+            found = true;
             break;
         }
     }
 
-    if (vec.empty()) {
-        if (!root->left) return root->right;
-        if (!root->right) return root->left;
-        auto temp = findMin(root->right);
-        root->students = temp->students;
-        root->gpa = temp->gpa;
-        root->right = deleteNodeByGPA(root->right, temp->gpa);
-    }
-
-    root->height = 1 + std::max(getHeight(root->left), getHeight(root->right));
-    int balance = getBalance(root);
-
-    if (balance > 1 && getBalance(root->left) >= 0)
-        return rightRotate(root);
-    if (balance > 1 && getBalance(root->left) < 0) {
-        root->left = leftRotate(root->left);
-        return rightRotate(root);
-    }
-    if (balance < -1 && getBalance(root->right) <= 0)
-        return leftRotate(root);
-    if (balance < -1 && getBalance(root->right) > 0) {
-        root->right = rightRotate(root->right);
-        return leftRotate(root);
-    }
-    return root;
-}
-
-std::shared_ptr<AVLNode> AVLTree::deleteNodeByGPA(std::shared_ptr<AVLNode> root, double gpa) {
-    if (!root) return nullptr;
-    if (gpa < root->gpa)
-        root->left = deleteNodeByGPA(root->left, gpa);
-    else if (gpa > root->gpa)
-        root->right = deleteNodeByGPA(root->right, gpa);
-    else {
-        if (!root->left) return root->right;
-        if (!root->right) return root->left;
-        auto temp = findMin(root->right);
-        root->students = temp->students;
-        root->gpa = temp->gpa;
-        root->right = deleteNodeByGPA(root->right, temp->gpa);
-    }
-    return root;
-}
-
-void AVLTree::inorder(const std::shared_ptr<AVLNode>& node) const {
-    if (!node) return;
-    inorder(node->left);
-    for (const auto& s : node->students)
-        std::cout << "ID: " << s->id << " | GPA: " << s->gpa << " | Name: " << s->name << "\n";
-    inorder(node->right);
-}
-
-void AVLTree::saveRec(std::ofstream& out, const std::shared_ptr<AVLNode>& node) const {
-    if (!node) return;
-    for (const auto& s : node->students)
-        out << s->id << ' ' << s->gpa << ' ' << s->name << '\n';
-    saveRec(out, node->left);
-    saveRec(out, node->right);
-}
-
-void AVLTree::insert(std::shared_ptr<Student> s) {
-    root = insertNode(root, s);
-}
-
-void AVLTree::deleteStudent(int id) {
-    root = deleteStudentRec(root, id);
-}
-
-void AVLTree::display() const {
-    if (!root)
-        std::cout << "No students.\n";
+    if (found) {
+        if (node->students.empty()) {
+            if (!node->left) return std::move(node->right);
+            else if (!node->right) return std::move(node->left);
+            Node* minNode = minValueNode(node->right.get());
+            node->gpa = minNode->gpa;
+            node->students = minNode->students;
+            node->right = deleteById(std::move(node->right), minNode->students.front().id);
+        }
+    } else if (id < node->gpa * 1000)
+        node->left = deleteById(std::move(node->left), id);
     else
-        inorder(root);
+        node->right = deleteById(std::move(node->right), id);
+
+    if (!node) return nullptr;
+
+    updateHeight(node.get());
+    int balance = getBalance(node);
+    if (balance > 1 && getBalance(node->left) >= 0) return rotateRight(std::move(node));
+    if (balance > 1 && getBalance(node->left) < 0) {
+        node->left = rotateLeft(std::move(node->left));
+        return rotateRight(std::move(node));
+    }
+    if (balance < -1 && getBalance(node->right) <= 0) return rotateLeft(std::move(node));
+    if (balance < -1 && getBalance(node->right) > 0) {
+        node->right = rotateRight(std::move(node->right));
+        return rotateLeft(std::move(node));
+    }
+
+    return node;
 }
 
-void AVLTree::saveToFile(const std::string& filename) const {
-    std::ofstream out(filename);
-    if (!out) {
-        std::cerr << "Error opening file for writing.\n";
-        return;
-    }
-    saveRec(out, root);
+void AVLTree::deleteStudentById(int id) {
+    root = deleteById(std::move(root), id);
+    std::cout << "🗑️  Deleted student (if existed)\n";
 }
 
-void AVLTree::loadFromFile(const std::string& filename) {
-    std::ifstream in(filename);
-    if (!in) {
-        std::cerr << "File not found, starting fresh.\n";
+const Student* AVLTree::findById(const Node* node, int id) const {
+    if (!node) return nullptr;
+    for (const auto& s : node->students)
+        if (s.id == id) return &s;
+    const Student* left = findById(node->left.get(), id);
+    if (left) return left;
+    return findById(node->right.get(), id);
+}
+
+const Student* AVLTree::findStudentById(int id) const {
+    return findById(root.get(), id);
+}
+
+void AVLTree::saveToFile(const Node* node, std::ofstream& file) const {
+    if (!node) return;
+    for (const auto& s : node->students)
+        file << s.id << ',' << s.name << ',' << s.gpa << '\n';
+    saveToFile(node->left.get(), file);
+    saveToFile(node->right.get(), file);
+}
+
+void AVLTree::save(const std::string& filename) const {
+    std::ofstream file(filename);
+    if (!file) {
+        std::cerr << "❌ Failed to open file for saving.\n";
         return;
     }
-    root.reset();
-    int id; double gpa; std::string name;
-    while (in >> id >> gpa >> name)
-        insert(std::make_shared<Student>(id, gpa, name));
+    saveToFile(root.get(), file);
+    std::cout << "💾 Data saved to file.\n";
+}
+
+void AVLTree::load(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file) return;
+
+    root.reset(); // clear tree
+    std::string line;
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string idStr, name, gpaStr;
+        if (!std::getline(ss, idStr, ',')) continue;
+        if (!std::getline(ss, name, ',')) continue;
+        if (!std::getline(ss, gpaStr, ',')) continue;
+        Student s(std::stoi(idStr), name, std::stod(gpaStr));
+        insert(s);
+    }
+    std::cout << "📂 Data loaded.\n";
 }

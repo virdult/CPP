@@ -1,49 +1,50 @@
 #ifndef AVLTREE_H
 #define AVLTREE_H
 
-#include <iostream>
-#include <memory>
-#include <vector>
-#include <fstream>
-#include <string>
 #include "Student.h"
-
-class AVLNode {
-public:
-    double gpa;
-    std::vector<std::shared_ptr<Student>> students;
-    int height;
-    std::shared_ptr<AVLNode> left;
-    std::shared_ptr<AVLNode> right;
-
-    explicit AVLNode(std::shared_ptr<Student> s);
-};
+#include <memory>
+#include <fstream>
 
 class AVLTree {
 private:
-    std::shared_ptr<AVLNode> root;
+    struct Node {
+        double gpa;
+        std::vector<Student> students; // multiple students with same GPA
+        std::unique_ptr<Node> left;
+        std::unique_ptr<Node> right;
+        int height;
 
-    int getHeight(const std::shared_ptr<AVLNode>& n) const;
-    int getBalance(const std::shared_ptr<AVLNode>& n) const;
-    std::shared_ptr<AVLNode> rightRotate(std::shared_ptr<AVLNode> y);
-    std::shared_ptr<AVLNode> leftRotate(std::shared_ptr<AVLNode> x);
-    static bool lessThan(const std::shared_ptr<Student>& a, const std::shared_ptr<Student>& b);
+        Node(double g, const Student& s)
+            : gpa(g), height(1) {
+            students.push_back(s);
+        }
+    };
 
-    std::shared_ptr<AVLNode> insertNode(std::shared_ptr<AVLNode> node, std::shared_ptr<Student> s);
-    std::shared_ptr<AVLNode> findMin(std::shared_ptr<AVLNode> node);
-    std::shared_ptr<AVLNode> deleteNodeByGPA(std::shared_ptr<AVLNode> root, double gpa);
-    std::shared_ptr<AVLNode> deleteStudentRec(std::shared_ptr<AVLNode> root, int id);
+    std::unique_ptr<Node> root;
 
-    void inorder(const std::shared_ptr<AVLNode>& node) const;
-    void saveRec(std::ofstream& out, const std::shared_ptr<AVLNode>& node) const;
+    // AVL utilities
+    int getHeight(const std::unique_ptr<Node>& n) const;
+    int getBalance(const std::unique_ptr<Node>& n) const;
+    void updateHeight(Node* n);
+    std::unique_ptr<Node> rotateRight(std::unique_ptr<Node> y);
+    std::unique_ptr<Node> rotateLeft(std::unique_ptr<Node> x);
+    std::unique_ptr<Node> insertNode(std::unique_ptr<Node> node, const Student& s);
+    std::unique_ptr<Node> deleteById(std::unique_ptr<Node> node, int id);
+    Node* minValueNode(Node* node);
+    void inorder(const Node* node) const;
+    void saveToFile(const Node* node, std::ofstream& file) const;
+    bool idExists(const Node* node, int id) const;
+    const Student* findById(const Node* node, int id) const;
 
 public:
-    AVLTree();
-    void insert(std::shared_ptr<Student> s);
-    void deleteStudent(int id);
-    void display() const;
-    void saveToFile(const std::string& filename) const;
-    void loadFromFile(const std::string& filename);
+    AVLTree() = default;
+
+    void insert(const Student& s);
+    void displayAll() const;
+    void deleteStudentById(int id);
+    void save(const std::string& filename) const;
+    void load(const std::string& filename);
+    const Student* findStudentById(int id) const;
 };
 
 #endif
